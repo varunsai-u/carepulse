@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from datetime import date
 from database import SessionLocal
@@ -44,6 +45,15 @@ class PriorityResponse(BaseModel):
     reasons: list[str]
 
 
+class PatientSummaryResponse(BaseModel):
+    id: int
+    name: str
+    date_of_birth: date
+    gender: str
+    severity: str
+    score: int
+
+
 class LatestValuesResponse(BaseModel):
     hba1c: float
     systolic_bp: int
@@ -55,7 +65,7 @@ class AnalysisResponse(BaseModel):
     latest_values: LatestValuesResponse
     analysis: dict[str, TrendResponse]
     priority: PriorityResponse
-    ai_explanation: str
+    
 
 
 class VitalRecordCreate(BaseModel):
@@ -66,7 +76,13 @@ class VitalRecordCreate(BaseModel):
 
 
 app = FastAPI(title="CarePulse API")
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def root():
@@ -100,6 +116,190 @@ def create_patient(patient_data: PatientCreate):
         db.refresh(patient)
 
         return patient
+    finally:
+        db.close()
+
+
+@app.get("/patients/summary", response_model=list[PatientSummaryResponse])
+def get_patient_summary():
+    db = SessionLocal()
+
+    try:
+        patients = db.query(Patient).all()
+        summaries = []
+
+        for patient in patients:
+            records = (
+                db.query(VitalRecord)
+                .filter(VitalRecord.patient_id == patient.id)
+                .order_by(VitalRecord.recorded_at)
+                .all()
+            )
+
+            if not records:
+                summaries.append({
+                    "id": patient.id,
+                    "name": patient.name,
+                    "date_of_birth": patient.date_of_birth,
+                    "gender": patient.gender,
+                    "severity": "unknown",
+                    "score": 0
+                })
+                continue
+
+            vital_analysis = analyze_vitals(records)
+
+            latest_record = records[-1]
+
+            latest_values = {
+                "hba1c": latest_record.hba1c,
+                "systolic_bp": latest_record.systolic_bp,
+                "diastolic_bp": latest_record.diastolic_bp
+            }
+
+            priority = calculate_priority(
+                vital_analysis,
+                latest_values
+            )
+
+            summaries.append({
+                "id": patient.id,
+                "name": patient.name,
+                "date_of_birth": patient.date_of_birth,
+                "gender": patient.gender,
+                "severity": priority["priority"],
+                "score": priority["score"]
+            })
+
+        return summaries
+
+    finally:
+        db.close()
+
+
+@app.get(
+    "/patients/{patient_id}/vitals",
+    response_model=list[VitalRecordResponse]
+)
+def get_patient_vitals(patient_id: int):
+    db = SessionLocal()
+
+    try:
+        patient = (
+            db.query(Patient)
+            .filter(Patient.id == patient_id)
+            .first()
+        )
+
+        if patient is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Patient not found"
+            )
+
+        records = (
+            db.query(VitalRecord)
+            .filter(VitalRecord.patient_id == patient_id)
+            .order_by(VitalRecord.recorded_at)
+            .all()
+        )
+
+        return records
+
+    finally:
+        db.close()
+
+
+@app.delete("/patients/{patient_id}")
+def delete_patient(patient_id: int):
+    db = SessionLocal()
+
+    try:
+        patient = (
+            db.query(Patient)
+            .filter(Patient.id == patient_id)
+            .first()
+        )
+
+        if patient is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Patient not found"
+            )
+
+        db.query(VitalRecord).filter(
+            VitalRecord.patient_id == patient_id
+        ).delete()
+
+        db.delete(patient)
+        db.commit()
+
+        return {
+            "message": "Patient and vital records deleted successfully"
+        }
+
+    finally:
+        db.close()
+
+
+@app.get("/patients/{patient_id}/ai-explanation")
+def get_ai_explanation(patient_id: int):
+    db = SessionLocal()
+
+    try:
+        patient = (
+            db.query(Patient)
+            .filter(Patient.id == patient_id)
+            .first()
+        )
+
+        if patient is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Patient not found"
+            )
+
+        records = (
+            db.query(VitalRecord)
+            .filter(VitalRecord.patient_id == patient_id)
+            .order_by(VitalRecord.recorded_at)
+            .all()
+        )
+
+        if not records:
+            raise HTTPException(
+                status_code=404,
+                detail="No vital records found for this patient"
+            )
+
+        vital_analysis = analyze_vitals(records)
+
+        latest_record = records[-1]
+
+        latest_values = {
+            "hba1c": latest_record.hba1c,
+            "systolic_bp": latest_record.systolic_bp,
+            "diastolic_bp": latest_record.diastolic_bp
+        }
+
+        priority = calculate_priority(
+            vital_analysis,
+            latest_values
+        )
+
+        patient_analysis = {
+            "latest_values": latest_values,
+            "analysis": vital_analysis,
+            "priority": priority
+        }
+
+        ai_explanation = generate_explanation(patient_analysis)
+
+        return {
+            "patient_id": patient_id,
+            "ai_explanation": ai_explanation
+        }
+
     finally:
         db.close()
 
@@ -206,14 +406,13 @@ def analyze_patient(patient_id: int):
             "priority": priority
         }
 
-        ai_explanation = generate_explanation(patient_analysis)
 
         return {
             "patient_id": patient_id,
             "latest_values": latest_values,
             "analysis": vital_analysis,
             "priority": priority,
-            "ai_explanation": ai_explanation
+            
         }
 
     finally:
