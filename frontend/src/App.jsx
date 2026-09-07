@@ -1,6 +1,6 @@
 import './App.css'
 import { useEffect, useState } from 'react'
-
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 function App() {
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [patients, setPatients] = useState([])
@@ -35,7 +35,7 @@ function App() {
   }, [])
 
   function loadPatients() {
-    fetch('http://localhost:8000/patients/summary')
+    fetch(`${API_BASE_URL}/patients/summary`)
       .then((response) => {
         if (!response.ok) {
           throw new Error('Unable to load patients')
@@ -61,8 +61,8 @@ function App() {
     setLoading(true)
 
     Promise.all([
-      fetch(`http://localhost:8000/patients/${patient.id}/analysis`),
-      fetch(`http://localhost:8000/patients/${patient.id}/vitals`)
+      fetch(`${API_BASE_URL}/patients/${patient.id}/analysis`),
+      fetch(`${API_BASE_URL}/patients/${patient.id}/vitals`)
     ])
       .then(async ([analysisResponse, vitalsResponse]) => {
         if (!analysisResponse.ok) {
@@ -103,7 +103,7 @@ function App() {
     setAiError(null)
 
     fetch(
-      `http://localhost:8000/patients/${selectedPatient.id}/ai-explanation`
+      `${API_BASE_URL}/patients/${selectedPatient.id}/ai-explanation`
     )
       .then(async (response) => {
         if (!response.ok) {
@@ -144,7 +144,7 @@ function App() {
     event.preventDefault()
     setError(null)
 
-    fetch('http://localhost:8000/patients', {
+    fetch(`${API_BASE_URL}/patients`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -178,7 +178,7 @@ function App() {
     setError(null)
 
     fetch(
-      `http://localhost:8000/patients/${selectedPatient.id}/vitals`,
+      `${API_BASE_URL}/patients/${selectedPatient.id}/vitals`,
       {
         method: 'POST',
         headers: {
@@ -228,7 +228,7 @@ function App() {
 
     setError(null)
 
-    fetch(`http://localhost:8000/patients/${patient.id}`, {
+    fetch(`${API_BASE_URL}/patients/${patient.id}`, {
       method: 'DELETE'
     })
       .then((response) => {
