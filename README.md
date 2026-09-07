@@ -1,404 +1,619 @@
-# CarePulse
+# CarePulse 🩺☁️
 
-AI-powered patient health monitoring prototype built with FastAPI, PostgreSQL, and Azure OpenAI.
+**CarePulse** is a small learning project I built to explore **Azure, backend development, PostgreSQL, AI integration, and cloud deployment** by building a complete application rather than only completing labs.
 
-## Overview
+It is an educational prototype that uses **synthetic patient data** to analyse health trends, prioritise records for review, and generate an AI explanation of the result.
 
-CarePulse is an educational healthcare prototype that analyzes synthetic patient health records over time.
+> ⚠️ CarePulse is not a medical diagnostic system. The thresholds and prioritisation rules are prototype-defined and are not clinical guidelines.
 
-It uses deterministic rules to identify worsening trends, calculate a patient-review priority score, and use Azure OpenAI to generate a clear explanation of the evidence behind that score.
+---
 
-> **Disclaimer:** CarePulse is an educational prototype, not a clinical diagnostic system. It does not provide medical diagnoses or treatment recommendations. All patient data used in this project is synthetic.
+## 🚀 What It Does
 
-## Tech Stack
+CarePulse allows users to:
 
-- **Backend:** Python, FastAPI
-- **Database:** PostgreSQL
-- **ORM:** SQLAlchemy
-- **Validation:** Pydantic
-- **AI:** Azure OpenAI
-- **Local Development:** Docker
-- **Version Control:** Git, GitHub
+- Create and view patient records
+- Store historical vital measurements
+- Analyse changes in HbA1c and blood pressure
+- Calculate a priority score using deterministic rules
+- View Low / Medium / High priority
+- See the reasons behind the calculated priority
+- Generate an AI explanation using Azure OpenAI / Microsoft Foundry
 
-## Architecture
+The important design choice is:
 
-                         ┌──────────────────┐
-                         │      Client      │
-                         │  (API / Swagger) │
-                         └────────┬─────────┘
-                                  │
-                                  ▼
-                         ┌──────────────────┐
-                         │   FastAPI API    │
-                         │                  │
-                         │ Patient Records  │
-                         │ Vital Records    │
-                         └────────┬─────────┘
-                                  │
-                    ┌─────────────┴─────────────┐
-                    │                           │
-                    ▼                           ▼
-          ┌──────────────────┐       ┌──────────────────┐
-          │    PostgreSQL    │       │  Analysis Engine │
-          │                  │       │                  │
-          │ Patients         │       │ Trend Detection  │
-          │ Vital Records    │       │ Priority Scoring │
-          └──────────────────┘       └────────┬─────────┘
-                                              │
-                                              │ Analysis +
-                                              │ Priority
-                                              ▼
-                                    ┌──────────────────┐
-                                    │   Azure OpenAI   │
-                                    │                  │
-                                    │ Evidence-based   │
-                                    │ Explanation      │
-                                    └────────┬─────────┘
-                                             │
-                                             ▼
-                                    ┌──────────────────┐
-                                    │  Analysis Result │
-                                    │                  │
-                                    │ Trends           │
-                                    │ Priority         │
-                                    │ AI Explanation   │
-                                    └──────────────────┘
+```text
+Patient Data
+     ↓
+Python Trend Analysis
+     ↓
+Deterministic Priority Calculation
+     ↓
+Priority Score
+     ↓
+Azure OpenAI
+     ↓
+AI Explanation
+```
 
-### Architecture Overview
+**AI explains the result; it does not decide the priority.**
 
-CarePulse separates **deterministic analysis** from **AI-generated explanation**.
+---
 
-- **FastAPI** provides the application API.
-- **PostgreSQL** stores synthetic patient and vital records.
-- The **Analysis Engine** calculates trends and patient-review priority using deterministic rules.
-- **Azure OpenAI** receives the calculated analysis and generates a natural-language explanation.
-- The AI does not calculate or modify the priority score.
+# 🏗️ Architecture
 
-## Features
+```text
+                   USER
+                     │
+                     ▼
+             React + Vite
+                     │
+                     ▼
+          Azure Static Web Apps
+                     │
+                  HTTP API
+                     │
+                     ▼
+              FastAPI Backend
+              Azure App Service
+                 │        │
+                 │        ▼
+                 │    Azure OpenAI
+                 │
+                 ▼
+       Azure PostgreSQL
+       Flexible Server
+```
 
-### Patient Management
+---
 
-- Create a patient
-- Retrieve all patients
-- Retrieve an individual patient
-- Validate patient input using Pydantic
+# 💻 Local Development
 
-### Vital Records
+I first built and tested the application locally before deploying it to Azure.
 
-- Add longitudinal vital measurements to a patient
-- Store measurements in PostgreSQL
-- Validate dates and numeric values
-- Associate each vital record with a patient
+The local setup consists of:
 
-### Trend Analysis
+```text
+React + Vite
+      ↓
+FastAPI
+      ↓
+PostgreSQL (Docker)
+      ↓
+Azure OpenAI
+```
 
-CarePulse currently analyzes:
+### Frontend
 
-- HbA1c
-- Systolic blood pressure
-- Diastolic blood pressure
+The frontend was built using **React and Vite**.
 
-The analysis identifies whether each measurement is:
+Vite was used for:
 
-- Increasing
-- Decreasing
-- Stable
-- Mixed
-- Insufficient data
+- Local development
+- Building the production frontend
 
-### Priority Scoring
+Development:
 
-A deterministic scoring engine evaluates worsening trends and configured prototype thresholds to assign:
+```bash
+npm run dev
+```
 
-- **Low**
-- **Medium**
-- **High**
+Production build:
 
-The priority score is calculated by the application and is **not generated by AI**.
+```bash
+npm run build
+```
 
-### AI-Powered Explanation
+The production build is generated inside:
 
-Azure OpenAI generates a natural-language explanation of the existing analysis.
+```text
+frontend/dist/
+```
 
-The AI explains:
+### Backend
 
-- Latest measurements
-- Observed trends
-- First-to-latest changes
-- Existing priority score
+The backend was built using **Python and FastAPI**.
+
+It provides REST APIs for:
+
+- Patients
+- Vital records
+- Trend analysis
+- Priority calculation
+- AI explanations
+
+The backend can be started locally with:
+
+```bash
+python -m fastapi dev main.py
+```
+
+### Database
+
+For local development, PostgreSQL runs inside Docker.
+
+The backend connects to it using:
+
+```text
+DATABASE_URL=postgresql+psycopg://carepulse:carepulse_dev@localhost:5432/carepulse
+```
+
+### AI
+
+The backend connects to the Azure OpenAI / Microsoft Foundry model deployment using the OpenAI Python SDK.
+
+The AI configuration is provided through environment variables.
+
+---
+
+# ☁️ Azure Deployment
+
+After getting the application working locally, I deployed the same application architecture to Azure.
+
+The cloud setup is:
+
+```text
+React + Vite
+      ↓
+Azure Static Web Apps
+      ↓
+Azure App Service
+      ↓
+Azure PostgreSQL Flexible Server
+      ↓
+Azure OpenAI / Microsoft Foundry
+```
+
+### Frontend
+
+The React application is built using:
+
+```bash
+npm run build
+```
+
+The generated `dist` folder is deployed to **Azure Static Web Apps**.
+
+### Backend
+
+The FastAPI application is deployed to **Azure App Service**.
+
+The backend uses the same Python application developed locally.
+
+Azure App Service provides the hosted environment for the FastAPI API.
+
+### Database
+
+The local PostgreSQL database is replaced by:
+
+**Azure Database for PostgreSQL – Flexible Server**
+
+The application code remains PostgreSQL-based; only the database connection configuration changes.
+
+### AI
+
+The deployed backend connects to the Azure-hosted model deployment for generating explanations.
+
+---
+
+# 📊 Priority Algorithm
+
+CarePulse uses deterministic Python rules to calculate a priority score.
+
+### Trend points
+
+| Condition                                        | Points |
+| ------------------------------------------------ | -----: |
+| HbA1c consistently increasing                    |    +30 |
+| Systolic BP consistently increasing              |    +25 |
+| Diastolic BP consistently increasing             |    +20 |
+| Two or more measurements consistently increasing |    +25 |
+
+### Latest-value points
+
+| Condition                | Points |
+| ------------------------ | -----: |
+| Latest HbA1c > 7.0       |    +10 |
+| Latest systolic BP > 140 |    +10 |
+| Latest diastolic BP > 90 |    +10 |
+
+The score is capped at 100.
+
+```text
+0–29     → LOW
+30–59    → MEDIUM
+60–100   → HIGH
+```
+
+The change for a measurement is calculated as:
+
+```text
+latest value - first recorded value
+```
+
+> These are prototype-defined rules for this project and are not clinical thresholds.
+
+---
+
+# 🤖 AI Integration
+
+The AI functionality is implemented in the backend.
+
+The process is:
+
+```text
+Patient ID
+    ↓
+Retrieve records from PostgreSQL
+    ↓
+Run Python analysis
+    ↓
+Calculate priority
+    ↓
+Send analysis to Azure OpenAI
+    ↓
+Generate explanation
+    ↓
+Return explanation to frontend
+```
+
+The AI receives the calculated result and explains:
+
+- Key observations
+- Trends
 - Reasons contributing to the priority
+- Overall summary
 
-The AI does **not** calculate, modify, or override the priority score.
+It is explicitly instructed not to recalculate or change the priority.
 
-## Project Structure
+---
+
+# 🔌 API Endpoints
+
+| Method | Endpoint                        | Purpose                         |
+| ------ | ------------------------------- | ------------------------------- |
+| GET    | `/`                             | Basic API response              |
+| GET    | `/patients`                     | Get all patients                |
+| POST   | `/patients`                     | Create patient                  |
+| GET    | `/patients/summary`             | Patient overview and priority   |
+| GET    | `/patients/{id}`                | Get patient details             |
+| GET    | `/patients/{id}/vitals`         | Get patient vitals              |
+| POST   | `/patients/{id}/vitals`         | Add vital record                |
+| DELETE | `/patients/{id}`                | Delete patient                  |
+| GET    | `/patients/{id}/analysis`       | Detailed deterministic analysis |
+| GET    | `/patients/{id}/ai-explanation` | Generate AI explanation         |
+
+---
+
+# 📁 Project Structure
 
 ```text
 carepulse/
+│
 ├── backend/
+│   ├── .env
 │   ├── .env.example
-│   ├── ai_service.py
-│   ├── analysis.py
-│   ├── database.py
 │   ├── main.py
+│   ├── database.py
 │   ├── models.py
-│   ├── requirements.txt
-│   └── test_ai.py
+│   ├── analysis.py
+│   ├── ai_service.py
+│   ├── test_ai.py
+│   └── requirements.txt
+│
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── App.css
+│   │   ├── main.jsx
+│   │   └── index.css
+│   ├── .env.example
+│   ├── package.json
+│   └── package-lock.json
+│
 ├── .gitignore
 └── README.md
 ```
 
-## Local Setup
+---
 
-### Prerequisites
+# 🧑‍💻 Run CarePulse Locally
 
-Make sure the following are installed:
+Anyone can clone this repository and run the project locally.
 
-- Python 3.11+
-- Docker Desktop
-- Git
+## 1. Clone the repository
 
-### 1. Clone the repository
+```bash
+git clone https://github.com/varunsai-u/carepulse.git
+cd carepulse
+```
 
-    git clone https://github.com/varunsai-u/carepulse.git
-    cd carepulse
+---
 
-### 2. Create and activate a virtual environment
+## 2. Start PostgreSQL
 
-    cd backend
-    python3 -m venv .venv
-    source .venv/bin/activate
+Make sure **Docker Desktop** is installed and running.
 
-### 3. Install dependencies
+Create the PostgreSQL container:
 
-    pip install -r requirements.txt
+```bash
+docker run --name carepulse-postgres \
+  -e POSTGRES_USER=carepulse \
+  -e POSTGRES_PASSWORD=carepulse_dev \
+  -e POSTGRES_DB=carepulse \
+  -p 5432:5432 \
+  -d postgres
+```
 
-### 4. Configure environment variables
+If the container already exists:
 
-Create your local environment file:
+```bash
+docker start carepulse-postgres
+```
 
-    cp .env.example .env
+---
 
-Open `.env` and provide your own Azure OpenAI configuration:
+# 🐍 3. Set Up the Backend
 
-    DATABASE_URL=postgresql+psycopg://carepulse:carepulse_dev@localhost:5432/carepulse
-    AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
-    AZURE_OPENAI_API_KEY=your_azure_openai_api_key
-    AZURE_OPENAI_DEPLOYMENT=your_azure_openai_deployment
+Go to the backend:
 
-> **Never commit `.env` or expose your Azure OpenAI API key.**
+```bash
+cd backend
+```
 
-### 5. Start PostgreSQL
+Create a virtual environment:
 
-Start a PostgreSQL container using Docker Desktop.
+```bash
+python3 -m venv .venv
+```
 
-The local database should be available on:
+Activate it:
 
-    localhost:5432
+### macOS / Linux
 
-The database name and credentials should match the `DATABASE_URL` configured in `.env`.
+```bash
+source .venv/bin/activate
+```
 
-### 6. Start the FastAPI server
+### Windows
+
+```powershell
+.venv\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+# 🔐 4. Configure Backend Environment
+
+Create:
+
+```text
+backend/.env
+```
+
+Add:
+
+```text
+DATABASE_URL=postgresql+psycopg://carepulse:carepulse_dev@localhost:5432/carepulse
+
+AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
+AZURE_OPENAI_API_KEY=your_azure_openai_api_key
+AZURE_OPENAI_DEPLOYMENT=your_azure_openai_deployment
+```
+
+You need your own Azure OpenAI / Microsoft Foundry model deployment to use the AI functionality.
+
+**Never commit your `.env` file or API key to GitHub.**
+
+---
+
+# ▶️ 5. Start the Backend
 
 From the `backend` directory:
 
-    python -m fastapi dev main.py
+```bash
+python -m fastapi dev main.py
+```
 
 The API will be available at:
 
-    http://127.0.0.1:8000
+```text
+http://localhost:8000
+```
 
-Interactive API documentation:
-
-    http://127.0.0.1:8000/docs
-
-## Environment Variables
-
-CarePulse uses environment variables for configuration and secrets.
-
-Create a `.env` file inside the `backend` directory:
-
-    DATABASE_URL=postgresql+psycopg://carepulse:carepulse_dev@localhost:5432/carepulse
-    AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
-    AZURE_OPENAI_API_KEY=your_azure_openai_api_key
-    AZURE_OPENAI_DEPLOYMENT=your_azure_openai_deployment
-
-### Variables
-
-- `DATABASE_URL` — PostgreSQL connection string
-- `AZURE_OPENAI_ENDPOINT` — Azure OpenAI endpoint
-- `AZURE_OPENAI_API_KEY` — Azure OpenAI authentication key
-- `AZURE_OPENAI_DEPLOYMENT` — Name of the deployed Azure OpenAI model
-
-The repository includes `.env.example` as a template.
-
-> **Never commit `.env` or expose API keys, passwords, or other secrets.**
-
-## API Endpoints
-
-### Health Check
-
-**GET `/`**
-
-Returns a welcome message from the CarePulse API.
-
-### Patients
-
-**GET `/patients`**
-
-Returns all patients.
-
-**POST `/patients`**
-
-Creates a new patient.
-
-Example request:
-
-    {
-      "name": "John Doe",
-      "date_of_birth": "1995-06-15",
-      "gender": "Male"
-    }
-
-**GET `/patients/{patient_id}`**
-
-Returns a specific patient by ID.
-
-### Vital Records
-
-**POST `/patients/{patient_id}/vitals`**
-
-Adds a vital record for a patient.
-
-Example request:
-
-    {
-      "recorded_at": "2026-09-04",
-      "hba1c": 6.4,
-      "systolic_bp": 118,
-      "diastolic_bp": 78
-    }
-
-### Patient Analysis
-
-**GET `/patients/{patient_id}/analysis`**
-
-Analyzes the patient's available vital records and returns:
-
-- Latest measurements
-- Trend analysis
-- Priority score
-- Priority reasons
-- AI-generated evidence explanation
-
-Interactive API documentation is available at:
-
-    http://127.0.0.1:8000/docs
-
-## Analysis Logic
-
-CarePulse separates **decision-making from AI explanation**.
-
-The application first analyzes the patient's historical measurements using deterministic rules.
-
-### Trend Detection
-
-For each metric, CarePulse compares the recorded measurements over time and identifies the trend as:
-
-- Increasing
-- Decreasing
-- Stable
-- Mixed
-- Insufficient data
-
-The reported `change` represents the difference between the **first recorded measurement and the latest recorded measurement**.
-
-### Priority Scoring
-
-The application calculates a priority score based on:
-
-- Consistently increasing measurements
-- Multiple metrics showing worsening trends
-- Latest measurements exceeding configured prototype thresholds
-
-The resulting score is mapped to:
-
-- **Low:** score below 30
-- **Medium:** score from 30 to 59
-- **High:** score of 60 or above
-
-The score is capped at 100.
-
-### AI Explanation
-
-Only after the deterministic analysis is complete does CarePulse send the results to Azure OpenAI.
-
-The AI's role is to explain the existing results in natural language.
+FastAPI documentation is available at:
 
 ```text
-Patient Records
-      |
-      v
-Trend Analysis
-      |
-      v
-Priority Scoring
-      |
-      +------------------+
-      |                  |
-      v                  v
-Priority Result    Azure OpenAI
-                       |
-                       v
-                Evidence Explanation
-
-## Testing
-
-CarePulse has been manually tested through the FastAPI Swagger UI.
-
-The current validation tests include:
-
-- Creating valid patients
-- Rejecting patients with missing required fields
-- Creating valid vital records
-- Rejecting invalid vital measurements
-- Rejecting invalid dates
-- Retrieving patient records
-- Running longitudinal patient analysis
-- Verifying deterministic priority scoring
-- Verifying Azure OpenAI explanations
-
-The manual Azure OpenAI integration test can be run with:
-
-    python test_ai.py
-
-> **Note:** `test_ai.py` makes a real Azure OpenAI API call and may incur usage charges. Make sure your environment variables are configured before running it.
-
-## Limitations
-
-CarePulse is currently an educational prototype and has several limitations:
-
-- Patient data is synthetic and intended only for demonstration.
-- Trend detection uses simple deterministic rules.
-- Priority thresholds are prototype values and are not medical guidelines.
-- The system does not provide clinical diagnosis or treatment recommendations.
-- The current implementation supports a limited set of vital measurements.
-- Authentication and authorization are not yet implemented.
-- The application currently runs against a local PostgreSQL database.
-- Azure deployment and production infrastructure are planned for a later stage.
-- The current AI integration uses Azure OpenAI for explanation rather than clinical decision-making.
-
-## Future Roadmap
-
-Planned improvements include:
-
-- Build a web-based frontend
-- Add authentication and authorization with Microsoft Entra ID
-- Deploy the backend to Azure App Service
-- Move PostgreSQL to Azure Database for PostgreSQL
-- Store patient files and supporting data in Azure Blob Storage
-- Add Azure Key Vault and managed identities for secure configuration
-- Add application monitoring with Azure Application Insights
-- Explore Azure Health Data Services and FHIR integration
-- Introduce event-driven processing with Azure Functions and Event Grid
-- Improve automated testing and CI/CD with GitHub Actions
+http://localhost:8000/docs
 ```
+
+---
+
+# ⚛️ 6. Set Up the Frontend
+
+Open another terminal.
+
+```bash
+cd carepulse/frontend
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create:
+
+```text
+frontend/.env
+```
+
+Add:
+
+```text
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+Start the frontend:
+
+```bash
+npm run dev
+```
+
+Open the URL shown by Vite, normally:
+
+```text
+http://localhost:5173
+```
+
+---
+
+# 🔄 Local Application Flow
+
+Once everything is running:
+
+```text
+Browser
+   ↓
+React Frontend
+   ↓
+FastAPI
+   ↓
+PostgreSQL
+```
+
+When AI explanation is requested:
+
+```text
+Browser
+   ↓
+React
+   ↓
+FastAPI
+   ↓
+PostgreSQL
+   ↓
+Python Analysis
+   ↓
+Azure OpenAI
+   ↓
+FastAPI
+   ↓
+React
+```
+
+---
+
+# 🌐 Environment Configuration
+
+The same application can run locally or in Azure by changing environment variables.
+
+### Local frontend
+
+```text
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+### Cloud frontend
+
+```text
+VITE_API_BASE_URL=https://YOUR-AZURE-BACKEND.azurewebsites.net
+```
+
+The frontend does not contain database credentials or Azure OpenAI secrets.
+
+---
+
+# 🔒 Security Notes
+
+- `.env` files are excluded using `.gitignore`
+- API keys are not committed to GitHub
+- Database passwords are not committed
+- Frontend `VITE_*` variables should never contain secrets
+- Only synthetic patient data is used in this project
+
+---
+
+# 📌 Current Azure Services
+
+| Azure Service                                   | Purpose                 |
+| ----------------------------------------------- | ----------------------- |
+| Azure Static Web Apps                           | React frontend hosting  |
+| Azure App Service                               | FastAPI backend hosting |
+| Azure Database for PostgreSQL – Flexible Server | Cloud database          |
+| Microsoft Foundry / Azure OpenAI                | AI explanations         |
+| Azure Monitor                                   | Request monitoring      |
+| Cost Management / Budgets                       | Cost tracking           |
+
+---
+
+# 📚 What I Learned
+
+This project helped me understand how to connect different technologies into one working application:
+
+- React + Vite
+- FastAPI
+- REST APIs
+- PostgreSQL
+- SQLAlchemy
+- Docker
+- Azure App Service
+- Azure Static Web Apps
+- Azure PostgreSQL
+- Azure OpenAI / Microsoft Foundry
+- OpenAI Python SDK
+- Environment variables
+- Git and GitHub
+- Cloud deployment
+- Azure monitoring
+
+The main goal was to **learn Azure by actually building something**, rather than only completing individual labs.
+
+---
+
+# 🔮 Future Improvements
+
+Possible future additions include:
+
+- Microsoft Entra ID authentication
+- Azure Key Vault
+- Managed Identity
+- Azure Blob Storage
+- Azure Functions
+- Event-driven processing
+- Azure Health Data Services / FHIR
+- Automated testing
+- More advanced analytics
+- Production-grade security
+
+---
+
+# ⚠️ Disclaimer
+
+CarePulse is an **educational portfolio project** using synthetic patient data.
+
+It is not intended to:
+
+- Diagnose medical conditions
+- Recommend treatment
+- Replace healthcare professionals
+- Make real clinical decisions
+
+The prioritisation thresholds and scoring system are created specifically for this prototype.
+
+---
+
+## 👨‍💻 Author
+
+**Varunsai Upputuri**
+
+Built as a hands-on project to explore:
+
+**Azure ☁️ + AI 🤖 + Backend 🐍 + PostgreSQL 🗄️ + Cloud Deployment 🚀**
